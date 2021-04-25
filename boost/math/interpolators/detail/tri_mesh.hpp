@@ -8,10 +8,12 @@
 //         ACM Transactions on Mathematical Software. 22, 1-8.
 
 #include <cstddef>
+#include <cmath>
 #include <stdexcept>
 #include <iterator>
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 namespace boost { namespace math { namespace interpolators { namespace detail {
 
@@ -19,6 +21,19 @@ template <typename ForwardIterator, typename Real = ForwardIterator::value_type>
 class tri_mesh
 {
 private:
+    // Nodal indexes in counterclockwise order of the verticies of a triangle
+    struct nodal_index
+    {
+        Real i1;
+        Real i2;
+        Real i3;
+    };
+
+    const ForwardIterator x_begin_;
+    const ForwardIterator x_end_;
+    const ForwardIterator y_begin_;
+    const ForwardIterator y_end_;
+
     const std::size_t node_count_;
 
     // Set of nodal indexes. In order to distinguish between interior and boundary nodes, the last neighbor of each
@@ -38,6 +53,18 @@ private:
     // facing N2
     inline bool left(Real x1, Real y1, Real x2, Real y2, Real x0, Real y0) const noexcept;
 
+    // True iff C is forward of A->B
+    // iff <A->B, A->C> >= 0
+    inline bool forward(Real xa, Real ya, Real xb, Real yb, Real xc, Real yc) const noexcept;
+
+    // Locates a point P relative to a triangulation. If P is contained in a triangle, the vertexes are returned.
+    // Otherwise, the indexes of the right most and leftmost visible boundary nodes are returned
+    nodal_index find_triangle(std::size_t index, Real x, Real y) const;
+
+    // Given a set of triangulation nodes update with a new node at position K
+    // Returns the location of the new node
+    std::size_t add_node(std::size_t index, Real x, Real y, std::size_t search_index, std::size_t node_location);
+
 public:
     tri_mesh(ForwardIterator x_begin, ForwardIterator x_end, ForwardIterator y_begin, ForwardIterator y_end);
 };
@@ -55,6 +82,11 @@ tri_mesh<ForwardIterator, Real>::tri_mesh(ForwardIterator x_begin, ForwardIterat
     {
         throw std::domain_error("X and Y must have at least three nodes for meshing.\n");
     }
+
+    x_begin_ = x_begin;
+    x_end_ = x_end;
+    y_begin_ = y_begin;
+    y_end_ = y_end;
 
     // Calculate the tolerance for calculations (10*epsilon)
     const Real tol = std::numeric_limits<Real>::epsilon();
@@ -87,7 +119,9 @@ tri_mesh<ForwardIterator, Real>::tri_mesh(ForwardIterator x_begin, ForwardIterat
         lptr[5] = 5;
         lend[2] = 6;
     } 
-    else if(!left(*std::next(x_begin, 1), *std::next(y_begin, 1), *x_begin, *y_begin, *std::next(x_begin, 2), *std::next(y_begin, 2)))
+    else if(!left(*std::next(x_begin, 1), *std::next(y_begin, 1), 
+                  *x_begin, *y_begin, 
+                  *std::next(x_begin, 2), *std::next(y_begin, 2)))
     {
         // The initial triangle is 1, 2, 3
         list[0] = 2;
@@ -129,6 +163,35 @@ inline bool tri_mesh<ForwardIterator, Real>::left(Real x1, Real y1, Real x2, Rea
     const Real dy2 {y0 - y1};
 
     return dx1*dy2 >= dx2*dy1;
+}
+
+template <typename ForwardIterator, typename Real>
+inline bool tri_mesh<ForwardIterator, Real>::forward(Real xa, Real ya, Real xb, Real yb, Real xc, Real yc) const noexcept
+{
+    return ((xb-xa) * (xc-xa) + (yb-ya) * (yc-ya)) >= 0;
+}
+
+template <typename ForwardIterator, typename Real>
+tri_mesh<ForwardIterator, Real>::nodal_index tri_mesh<ForwardIterator, Real>::find_triangle(std::size_t index, Real x, Real y) const
+{
+    const Real xp = x;
+    const Real yp = y;
+
+    // Set n1 = nf and nl to the first and last neighbors of n0.
+    auto n0 = index;
+    auto lp = lend[index];
+    auto nl = list[lp];
+    lp = lptr[lp];
+    auto nf = list[lp];
+    auto n1 = nf;
+    auto np = nl;
+    auto npp = nf;
+}
+
+template <typename ForwardIterator, typename Real>
+std::size_t tri_mesh<ForwardIterator, Real>::add_node(std::size_t index, Real x, Real y, std::size_t search_index, std::size_t node_location)
+{
+    // Call triangle find
 }
 
 }}}} // Namespaces
