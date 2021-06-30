@@ -194,4 +194,28 @@ std::size_t tri_mesh<ForwardIterator, Real>::add_node(std::size_t index, Real x,
     // Call triangle find
 }
 
+// Given a sequence of points in the plane, this function computes the signed area bounded by the closed polygonal
+// curve which passes through the points in the specified order.
+template <typename RandomAccessContainer, typename Real = RandomAccessContainer::value_type>
+Real area(const RandomAccessContainer& x, const RandomAccessContainer& y, const RandomAccessContainer& nodes)
+{
+    std::size_t node_1 = 0;
+    std::size_t node_2 = nodes.back();
+    Real partial_area = Real(0);
+
+    if(nodal_boundaries > 3)
+    {
+        for(std::size_t i = 0; i < nodes.size(); ++i)
+        {
+            node_1 = node_2;
+            node_2 = nodes_[i];
+
+            partial_area += (x[node_2] - x[node_1]) * (y[node_1] + y[node_2]);
+        }
+    }
+
+    // A contains twice the negative signed area of the region
+    return -partial_area/2;
+}
+
 }}}} // Namespaces
