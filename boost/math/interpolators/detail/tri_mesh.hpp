@@ -1,3 +1,4 @@
+// Copyright Robert J. Renka 1990-1996
 // Copyright Matt Borland, 2021
 // Use, modification and distribution are subject to the
 // Boost Software License, Version 1.0.
@@ -34,7 +35,11 @@ private:
     const ForwardIterator y_begin_;
     const ForwardIterator y_end_;
 
-    const std::size_t node_count_;
+    std::vector<std::size_t> nodes_;
+    std::size_t node_count_;
+    std::size_t boundary_node_count_;
+    std::size_t arc_count_;
+    std::size_t triangle_count_;
 
     // Set of nodal indexes. In order to distinguish between interior and boundary nodes, the last neighbor of each
     // boundary node is represented by the negative of its index
@@ -64,6 +69,8 @@ private:
     // Given a set of triangulation nodes update with a new node at position K
     // Returns the location of the new node
     std::size_t add_node(std::size_t index, Real x, Real y, std::size_t search_index, std::size_t node_location);
+
+    void build_nodes();
 
 public:
     tri_mesh(ForwardIterator x_begin, ForwardIterator x_end, ForwardIterator y_begin, ForwardIterator y_end);
@@ -216,6 +223,38 @@ Real area(const RandomAccessContainer& x, const RandomAccessContainer& y, const 
 
     // A contains twice the negative signed area of the region
     return -partial_area/2;
+}
+
+template <typename ForwardIterator, typename Real>
+void tri_mesh<ForwardIterator, Real>::build_nodes()
+{
+    std::size_t start_node = 0;
+    std::size_t lp = lend[start_node];
+
+    while(list[start_node] > 0)
+    {
+        ++start_node;
+    }
+
+    nodes_.push_back(start_node);
+    std::size_t k = 1;
+    std::size_t current_node = start_node;
+
+    // Traverse the boundary in counter-clockwise order
+    lp = lend[current_node];
+    current_node = list[lp];
+
+    while(start_node != current_node)
+    {
+        ++k;
+        nodes_.push_back(current_node)
+        lp = lend[current_node];
+        current_node = list[lp];
+    }
+
+    boundary_node_count_ = k;
+    triangle_count_ = 2*node_count_ - boundary_node_count_ - 2;
+    arc_count_ = triangle_count_ + node_count_ - 1;
 }
 
 }}}} // Namespaces
