@@ -30,6 +30,29 @@ private:
         Real i3;
     };
 
+    // Triangle 
+    struct triangle
+    {
+        Real x1;
+        Real y1;
+        Real x2;
+        Real y2;
+        Real x3;
+        Real y3;
+
+        // Circumcenter
+        Real xc;
+        Real yc;
+
+        Real circumradius;
+        Real area;
+        Real aspect_ratio;
+
+        triangle(Real x1_, Real y1_, Real x2_, Real y2_, Real x3_, Real y3_) : x1 {x1_}, y1 {y1_}, 
+                                                                               x2 {x2_}, y2 {y2_}, 
+                                                                               x3 {x3_}, y3 {y3_} {}
+    }
+
     const ForwardIterator x_begin_;
     const ForwardIterator x_end_;
     const ForwardIterator y_begin_;
@@ -71,6 +94,8 @@ private:
     std::size_t add_node(std::size_t index, Real x, Real y, std::size_t search_index, std::size_t node_location);
 
     void build_nodes();
+
+    void circum(triangle& t);
 
 public:
     tri_mesh(ForwardIterator x_begin, ForwardIterator x_end, ForwardIterator y_begin, ForwardIterator y_end);
@@ -255,6 +280,52 @@ void tri_mesh<ForwardIterator, Real>::build_nodes()
     boundary_node_count_ = k;
     triangle_count_ = 2*node_count_ - boundary_node_count_ - 2;
     arc_count_ = triangle_count_ + node_count_ - 1;
+}
+
+template <typename ForwardIterator, typename Real>
+void tri_mesh<ForwardIterator, Real>::circum(triangle& t)
+{
+    using std::abs;
+    using std::sqrt;
+    using std::fpclassify;
+
+    std::array<Real, 3> u {t.x3 - t.x2, t.x1 - t.x3, t.x2 - t.x1};
+    std::array<Real, 3> v {t.y3 - t.y2, t.y1 - t.y3, t.y2 - t.y1};
+
+    t.area = (u[0] * v[1] - u[1] * v[0]) / 2;
+
+    if(fpclassify(t.area) == FP_ZERO)
+    {
+        t.aspect_ratio = 0;
+        return;
+    }
+
+    std::array<Real, 3> squared_distance {t.x1 * t.x1 + t.y1 * t.y1,
+                                          t.x2 * t.x2 + t.y2 * t.y2,
+                                          t.x3 * t.x3 + t.y3 * t.y3};
+
+    // Compute factors of t.xc and t.yc
+    Real fx = 0;
+    Real fy = 0;
+
+    for(std::size_t i = 0; i < u.size(); ++i)
+    {
+        fx += squared_distance[i] * v[i];
+        fy += squared_distance[i] * u[i];
+    }
+
+    t.xc = fx / (4 * t.area);
+    t.yc = fy / (4 * t.area);
+
+    t.circumradius = sqrt((t.xc - t.x1)*(t.xc - t.x1) + (t.yc - t.y1)*(t.yc - t.y1));
+
+    // Compute the squared edge lengths and aspect ratio
+    std::array<Real, 3> squared_vector {u[0] * u[0] + v[0] * v[0],
+                                        u[1] * u[1] + v[1] * v[1],
+                                        u[2] * u[2] + v[2] * v[2]};
+
+    t.aspect_ratio = 2 * abs(t.area) / (sqrt(squared_vector[0]) + sqrt(squared_vector[1]) + 
+                                        sqrt(squared_vector[2]) * t.circumradius);
 }
 
 }}}} // Namespaces
